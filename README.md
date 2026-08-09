@@ -6,6 +6,8 @@ A grid of aliens marches across the screen, dropping closer with every bounce of
 hold the bottom of the screen behind four destructible bunkers, and both sides can shoot through
 them. The bunkers erode block by block as the fight goes on.
 
+![Space Invaders gameplay](screenshots/gameplay.png)
+
 ---
 
 ## Gameplay
