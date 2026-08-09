@@ -82,3 +82,19 @@ drop.
 
 - Python 3.11
 - [pygame-ce](https://pyga.me/) 2.5.5
+
+## Credits
+
+- **Graphics** — original, by me.
+- **Music** — *Arcade Boss Tracks* by [wyver9](https://opengameart.org/content/arcade-boss-tracks-8-bitchiptune), via OpenGameArt.
+- **Sound effects** — *512 Sound Effects (8-bit style)* by [SubspaceAudio](https://opengameart.org/content/512-sound-effects-8-bit-style), via OpenGameArt.
+
+Please check the terms on each linked OpenGameArt page before reusing the audio.
+
+## License
+
+The **source code** is released under the [MIT License](LICENSE) — use it, change it,
+build on it, just keep the copyright notice.
+
+The **audio assets** are not mine and are not covered by that licence. They belong to the
+creators listed above under their own terms.
