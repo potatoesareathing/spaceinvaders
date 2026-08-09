@@ -5,15 +5,25 @@ from random import randint
 
 class Projectile(pygame.sprite.Sprite):
 
-    def __init__(projectile, pos):
+    def __init__(projectile, pos, type):
 
         super().__init__()
+        projectile.type = type
         projectile.image = pygame.Surface((3, 15))
-        projectile.image.fill('white')
+        if projectile.type == 'player':
+            projectile.image.fill('white')
+        else:
+            projectile.image.fill('purple')
         projectile.rect = projectile.image.get_rect(midbottom=pos)
 
-    def movement(projectile):
-        projectile.rect.y -= 5
+    def player_projectile_movement(projectile):
+        if projectile.type == 'player':
+            projectile.rect.y -= 7
+
+    def alien_projectile_movement(projectile):
+        if projectile.type == 'alien':
+            projectile.rect.y += 7
 
     def update(projectile):
-        projectile.movement()
+        projectile.player_projectile_movement()
+        projectile.alien_projectile_movement()

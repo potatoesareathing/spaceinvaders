@@ -2,7 +2,7 @@ import pygame
 from settings import *
 from pygame.image import load
 from os.path import join
-
+from pygame.mixer import Sound
 from projectile import Projectile
 
 
@@ -12,7 +12,8 @@ class Player(pygame.sprite.Sprite):
         super().__init__()
         player.image = load(join('graphics', 'player.png'))
         player.rect = player.image.get_rect(midbottom=coordinates)
-        player.speed = 5
+        player.speed = 7
+        # refers to the group tied to one Player object
         player.projectile_group = pygame.sprite.Group()
         player.must_shoot = True
         player.projectile_limit = 20
@@ -35,10 +36,13 @@ class Player(pygame.sprite.Sprite):
         # shoot
         if keys[pygame.K_SPACE]:
             player.shoot()
+            Sound('audio\laser.wav').play()
 
     def shoot(player):
         if player.must_shoot is True:
-            player.projectile_group.add(Projectile(pos=player.rect.center))
+            player.projectile_group.add(Projectile(
+                pos=player.rect.center, type='player'))
+
             player.must_shoot = False
 
     def projectile_time(player):

@@ -5,15 +5,24 @@ from obstacle import Block
 import obstacle
 from player import Player
 from alien import Alien
-from random import choice, randint
+from random import choice, randint, choices
 from projectile import Projectile
+from pygame.mixer import Sound, music
+
+
+pygame.init()
+
+# EVENTS
+ALIEN_SHOOT_EVENT = pygame.USEREVENT + 1
+pygame.time.set_timer(ALIEN_SHOOT_EVENT, 1000)
 
 
 class Game:
     def __init__(game):
 
-        pygame.init()
         pygame.display.set_caption('Space Invaders')
+        music.load(r'audio\music.wav')
+        music.play()
         game.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         game.clock = pygame.time.Clock()
         game.player_object1 = Player(coordinates=(
@@ -30,8 +39,16 @@ class Game:
         game.create_alien()
         game.aliens = game.alien_group.sprites()
         game.alien_is_moving_right = True
-        game.alien_speed = 2
-        # function to add aliens at specified positions inside the group
+        game.alien_speed = 0.5
+        game.alien_move_accumulator = 0.0
+        game.alien_projectile_group = pygame.sprite.Group()
+        game.font = pygame.font.Font(r'font\Pixeled.ttf', 30)
+        game.score = 0
+        game.player_lives = 3
+        game.status = True
+        game.explosion = Sound(r'audio\explosion.wav')
+        game.explosion.set_volume(9.9)
+        game.shoot = Sound(r'audio\laser.wav')
 
     def create_alien(game):
         for x in range(300, 800, 50):
@@ -56,56 +73,144 @@ class Game:
             game.create_obstacle(x_start, y_start)
 
     def collide_projectile(game):
-        print(f'COLLIDED! {game.player_group.sprite.projectile_group}')
-        pygame.sprite.groupcollide(
-            game.player_group.sprite.projectile_group, game.alien_group, dokilla=True, dokillb=True)
+        if pygame.sprite.groupcollide(
+                game.player_group.sprite.projectile_group, game.alien_group, dokilla=True, dokillb=True):
+            game.score += 1
+            game.explosion.play()
+
+        if pygame.sprite.groupcollide(
+                game.player_group.sprite.projectile_group, game.block_group, dokilla=True, dokillb=True):
+            game.explosion.play()
+        if pygame.sprite.groupcollide(
+                game.player_group.sprite.projectile_group, game.alien_projectile_group, dokilla=True, dokillb=True):
+            game.explosion.play()
+
+    def alien_drop(game, distance=10):
+        for alien in game.alien_group.sprites():
+            alien.rect.y += distance
 
     def alien_movement(game):
+        aliens = game.alien_group.sprites()
+        if not aliens:
+            return
 
-        for alien in game.aliens:
+        direction = 1 if game.alien_is_moving_right else -1
 
-            if game.alien_is_moving_right is True:
-                alien.rect.x += game.alien_speed
-            else:
-                alien.rect.x -= game.alien_speed
+        # rect.x is an integer, so a speed below 1 truncates to 0 every frame.
+        # accumulate the fraction and move by whole pixels once it adds up.
+        game.alien_move_accumulator += game.alien_speed
+        step = int(game.alien_move_accumulator)
+        game.alien_move_accumulator -= step
 
-            if alien.rect.right >= SCREEN_WIDTH:
+        if step:
+            for alien in aliens:
+                alien.rect.x += step * direction
+
+        # check the edges once, after the whole formation has moved,
+        # otherwise every alien past the edge triggers its own drop
+        if game.alien_is_moving_right:
+            if max(alien.rect.right for alien in aliens) >= SCREEN_WIDTH:
                 game.alien_is_moving_right = False
-                for alien in game.aliens:
-                    alien.rect.y += 10
-
-            if alien.rect.left <= 0:
+                game.alien_drop()
+        else:
+            if min(alien.rect.left for alien in aliens) <= 0:
                 game.alien_is_moving_right = True
-                for alien in game.aliens:
-                    alien.rect.y += 10
-# make aliens shoot
+                game.alien_drop()
+
+    def alien_projectile_add(game):
+        # assign this to a variable perhaps later if we need powerups
+        chosen_aliens = choices(game.aliens, k=2)
+        for chosen_alien in chosen_aliens:
+            game.alien_projectile_group.add(Projectile(
+                chosen_alien.rect.midbottom, type='alien'))
+            game.shoot.play()
+
+    # clears the projectiles of aliens inside their group once the projectile either hits the player, the obstacle, or falls to infinity
+    def alien_projectile_delete(game):
+        print(len(game.alien_projectile_group.sprites()))
+        for projectile in game.alien_projectile_group.sprites():
+            if projectile.rect.y >= SCREEN_HEIGHT:
+                projectile.kill()
+
+        if pygame.sprite.groupcollide(game.alien_projectile_group, game.block_group, dokilla=True, dokillb=True):
+            print('ALIEN | BLOCK')
+            game.explosion.play()
+
+        elif pygame.sprite.groupcollide(game.alien_projectile_group, game.player_group, dokilla=True, dokillb=False):
+            print('ALIEN | PLAYER')
+            game.explosion.play()
+            if game.player_lives == 1:
+
+                game.screen.blit(game.lose_surf, game.lose_rect)
+                game.status = False
+
+            else:
+                game.player_lives -= 1
+
+    def lives_score_and_lose(game):
+        game.score_surf = game.font.render(
+            f'score: {game.score}', antialias=True, color='gray')
+
+        game.score_rect = game.score_surf.get_rect(center=(150, 30))
+        game.player_lives_surf = game.font.render(
+            f'lives: {game.player_lives}', antialias=True, color='gray')
+        game.player_lives_rect = game.player_lives_surf.get_rect(
+            center=(150, 80))
+        game.lose_surf = game.font.render(
+            f'YOU LOSE: {game.score}', antialias=True, color='white')
+        game.lose_rect = game.lose_surf.get_rect(center=(SCREEN_WIDTH/2, 120))
 
     def run(game):
         running = True
 
         while running:
-            game.clock.tick(60)
-            game.screen.fill('black')
+            while game.status is False:
 
-            game.player_group.draw(game.screen)
-            game.player_group.update()
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        exit()
 
-            game.player_group.sprite.projectile_group.draw(game.screen)
-            game.block_group.draw(game.screen)
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            game.status = True
+                            game.player_group.empty()
+                            game.alien_group.empty()
+                            game.__init__()
 
-            game.alien_group.draw(game.screen)
-            game.alien_group.update()
+            while game.status:
 
-            game.collide_projectile()
-            game.alien_movement()
+                game.clock.tick(60)
+                game.screen.fill('black')
 
-            events = pygame.event.get()
-            for event in events:
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+                game.block_group.draw(game.screen)
 
-            pygame.display.update()
+                game.alien_group.draw(game.screen)
+                game.alien_group.update()
+                game.collide_projectile()
+                game.alien_movement()
+                game.alien_projectile_group.draw(game.screen)
+                game.alien_projectile_group.update()
+                game.alien_projectile_delete()
+
+                game.player_group.draw(game.screen)
+                game.player_group.update()
+                game.player_group.sprite.projectile_group.draw(game.screen)
+
+                game.lives_score_and_lose()
+                game.screen.blit(game.player_lives_surf,
+                                 game.player_lives_rect)
+                game.screen.blit(game.score_surf, game.score_rect)
+
+                game.events = pygame.event.get()
+                for event in game.events:
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    if event.type == ALIEN_SHOOT_EVENT:
+                        game.alien_projectile_add()
+
+                pygame.display.update()
 
 
 if __name__ == '__main__':
